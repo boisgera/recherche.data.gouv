@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.8.15"
+__generated_with = "0.8.18"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def __():
     # Python Standard Library
+    import asyncio
     import json
     import math
     import os
@@ -17,11 +18,26 @@ def __():
     import numpy as np
     import matplotlib.pyplot as plt
     import pandas as pd
+    from playwright.async_api import async_playwright, Playwright
     import requests
 
     # Marimo
     import marimo as mo
-    return joblib, json, math, mo, np, os, pd, plt, requests, time
+    return (
+        Playwright,
+        async_playwright,
+        asyncio,
+        joblib,
+        json,
+        math,
+        mo,
+        np,
+        os,
+        pd,
+        plt,
+        requests,
+        time,
+    )
 
 
 @app.cell
@@ -46,18 +62,51 @@ def __(requests):
         "Upgrade-Insecure-Requests": "1",
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0",
     }
-    print(response.status_code, response.text)
+    print(response.status_code)
     print(response.headers)
     # OK, given the "x-amz-waf-action": "challenge" stuff, I guess that there is some anto-bot
     # protection, see e.g. https://docs.aws.amazon.com/waf/latest/APIReference/API_ChallengeAction.html
-
     return URL, headers, response, session
 
 
 @app.cell
-def __(response):
-    response.text
-    return
+async def __(async_playwright):
+    async def get_ex():
+        async with async_playwright() as playwright:
+            chromium = playwright.chromium # or "firefox" or "webkit".
+            browser = await chromium.launch()
+            page = await browser.new_page()
+            await page.goto("http://example.com")
+            html = await page.content()
+            await browser.close()
+            return html
+
+    await get_ex()
+    return (get_ex,)
+
+
+@app.cell
+async def __(async_playwright, json):
+    async def get_hd():
+        async with async_playwright() as playwright:
+            chromium = playwright.chromium # or "firefox" or "webkit".
+            browser = await chromium.launch()
+            context = await browser.new_context(java_script_enabled=True)
+            page = await context.new_page()
+            page = await browser.new_page()
+            r = await page.goto("https://dataverse.harvard.edu/api/search?q=*")
+            source = await r.text()
+            await page.wait_for_timeout(5000) # TODO: investigate playwright wait for functions instead.
+            # html = await page.content()
+            # json = await r.json()
+            pre = page.locator("pre")
+            js = await pre.inner_text()
+            await context.close()
+            await browser.close()
+            return json.loads(js)
+
+    await get_hd()
+    return (get_hd,)
 
 
 @app.cell
@@ -114,7 +163,7 @@ def __(mo):
 def __(pd):
     df = pd.read_json("harvard.json")
     df
-    return df,
+    return (df,)
 
 
 @app.cell
@@ -127,7 +176,7 @@ def __(df):
 def __(df):
     df_dataverse = df[df.type=="dataverse"]
     df_dataverse
-    return df_dataverse,
+    return (df_dataverse,)
 
 
 @app.cell
@@ -148,7 +197,7 @@ def __(df_dataverse, pd):
 def __(df_dv):
     omics_dv = df_dv[df_dv.name == "Omics Dataverse"]
     omics_dv
-    return omics_dv,
+    return (omics_dv,)
 
 
 @app.cell
@@ -173,28 +222,28 @@ def __(mo):
 def __(df):
     df_dataset = df[df.type=="dataset"]
     df_dataset
-    return df_dataset,
+    return (df_dataset,)
 
 
 @app.cell
 def __(def_ratios, df_dataset):
     ds_ratios = def_ratios(df_dataset)
     ds_ratios
-    return ds_ratios,
+    return (ds_ratios,)
 
 
 @app.cell
 def __(ds_ratios):
     ds_used_keys = [key for (key, ratio) in ds_ratios.items() if ratio > 0]
     ds_used_keys
-    return ds_used_keys,
+    return (ds_used_keys,)
 
 
 @app.cell
 def __(df_dataset, ds_used_keys):
     df_ds = df_dataset[ds_used_keys]
     df_ds
-    return df_ds,
+    return (df_ds,)
 
 
 @app.cell
@@ -207,28 +256,28 @@ def __(mo):
 def __(df):
     df_datafile = df[df.type=="file"]
     df_datafile
-    return df_datafile,
+    return (df_datafile,)
 
 
 @app.cell
 def __(def_ratios, df_datafile):
     df_ratios = def_ratios(df_datafile)
     df_ratios
-    return df_ratios,
+    return (df_ratios,)
 
 
 @app.cell
 def __(df_ratios):
     df_used_keys = [key for (key, ratio) in df_ratios.items() if ratio > 0]
     df_used_keys
-    return df_used_keys,
+    return (df_used_keys,)
 
 
 @app.cell
 def __(df_datafile, df_used_keys):
     df_df = df_datafile[df_used_keys]
     df_df
-    return df_df,
+    return (df_df,)
 
 
 @app.cell
@@ -241,7 +290,7 @@ def __(df_df, mo):
 def __(df_df):
     datatypes = df_df.file_content_type.value_counts()
     datatypes.to_dict()
-    return datatypes,
+    return (datatypes,)
 
 
 @app.cell
@@ -251,14 +300,14 @@ def __(df_df, np, pd):
     df_size["size_in_GiB"] = np.round(df_size.size_in_bytes / 1024**3, 1)
     df_size = df_size[["size_in_GiB"]]
     df_size
-    return df_size,
+    return (df_size,)
 
 
 @app.cell
 def __(df_df):
     df_images = df_df[df_df.file_content_type.str.startswith("image")] # VERY slow
     df_images
-    return df_images,
+    return (df_images,)
 
 
 @app.cell
@@ -272,7 +321,7 @@ def __(df_df):
     df_df_sorted = df_df.sort_values("size_in_bytes", ascending=False)
     df_df_sorted["size_in_GiB"] = round(df_df_sorted["size_in_bytes"] / 1024**3)
     df_df_sorted[["name", "description", "dataset_name", "url", "file_type", "size_in_GiB"]]
-    return df_df_sorted,
+    return (df_df_sorted,)
 
 
 @app.cell
@@ -325,7 +374,7 @@ def __(df_dv, mo, pd):
     **TODO:** add `size_in_bytes` in datasets and dataverses dataframes (will be a nice summary and will allow to sort this stuff)
 
     """)
-    return undefined_ds,
+    return (undefined_ds,)
 
 
 @app.cell
@@ -340,7 +389,7 @@ def __(df_ds, mo, pd):
     undefined_df = pd.isnull(df_ds["datafiles"]).mean()
     mo.md(f"""About {round(undefined_df*100.0, 1)}% of datasets have no associated datafiles.
     """)
-    return undefined_df,
+    return (undefined_df,)
 
 
 @app.cell
@@ -380,7 +429,7 @@ def __(df_df, df_ds):
         df_ds.at[_index, "size_in_bytes"] += _file_entry["size_in_bytes"]
 
     _s
-    return dataset_id,
+    return (dataset_id,)
 
 
 @app.cell
@@ -406,7 +455,7 @@ def __(df_ds, df_dv):
         _index = _selection.index[0]
         # print(_file_entry["size_in_bytes"])
         df_dv.at[_index, "size_in_bytes"] += _dataset_entry["size_in_bytes"]
-    return dataverse_id,
+    return (dataverse_id,)
 
 
 @app.cell
@@ -431,7 +480,7 @@ def __(df_df, np, plt):
     plt.grid(True)
     plt.ylabel("File size")
     plt.xlabel("# file")
-    return ax,
+    return (ax,)
 
 
 @app.cell
@@ -468,7 +517,7 @@ def __(df_dv):
 def __(df_dv):
     dv_generique = df_dv[df_dv["identifier"] == "espacegenerique"]
     dv_generique
-    return dv_generique,
+    return (dv_generique,)
 
 
 @app.cell
